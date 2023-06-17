@@ -16,9 +16,14 @@ if (!require(ggpubr)) {
   require(ggpubr)
 }
 
-if (!require(tidyverse)) {
-  install.packages("tidyverse", dependencies = TRUE)
-  require(tidyverse)
+if(!require(tidyr)){
+  install.packages("tidyr", dependencies = TRUE)
+  require(tidyr)
+}
+
+if(!require(WRS2)){
+  install.packages("tidyr", dependencies = TRUE)
+  require(WRS2)
 }
 
 # ------------------------------ ACTIVIDADES --------------------------------------
@@ -183,7 +188,83 @@ print(prueba)
 # las variedades de Winter Nelly y Golden Bosc en la semana 15 de crecimiento. Por lo tanto, se concluye 
 # que en esta etapa de desarrollo, el peso de ambas variedades es similar.
 
+# -------------------------------------------------------------------------------
+
 # 2. Analice la primera pregunta abordada en el ejercicio práctico 11, con los mismos datos, utilizando un
 # método robusto adecuado.
+
+# Cargar datos
+datos <- read.csv2(file.choose(), stringsAsFactors = TRUE)
+
+# En analizar este caso, vamos a considerar la pregunta: ¿En promedio, el número de hombres y 
+# mujeres solteros/as es el mismo?
+
+# La pregunta anteriormente planteada responde a la comparación entre la media
+# de dos grupos independientes de personas encuestadas
+
+# A continuación se fija una semilla propia
+set.seed(349)
+
+# Se selecciona una muestra aleatoria de hogares considerando: 250 < n < 500
+muestra_hogares <- sample_n(datos, 369)
+
+# Se seleccionan los datos de interés según la interrogante propuesta
+muestra_hogares <- muestra_hogares %>% select(sexo, region, ecivil)
+
+# Se filtra por todas las personas que tienen un estado civil Soltero(a).
+muestra_hogares <- muestra_hogares %>% filter(ecivil == "Soltero(a)")
+
+# Se obtiene los datos referentes a hombres solteros de acuerdo a la muestra obtenida anteriormente
+hombres_solteros_rm <- muestra_hogares %>% filter(sexo == "Hombre")
+
+# Se obtiene los datos referentes a mujeres solteras de acuerdo a la muestra obtenida anteriormente
+mujeres_solteras_rm <- muestra_hogares %>% filter(sexo == "Mujer")
+
+# Se extrae el número de hombres y mujeres solteras de acuerdo a la muestra obtenida
+n_hombres_solteros <- nrow(hombres_solteros_rm)
+n_mujeres_solteras <- nrow(mujeres_solteras_rm)
+
+# Crear un dataframe con los datos
+datos_solteros <- data.frame(Grupo = c("Hombres",
+                                       "Mujeres"),
+                             Cantidad = c(n_hombres_solteros,
+                                          n_mujeres_solteras))
+
+# Se crea el grafico correspondiente
+g3 <- ggplot(datos_solteros, aes(x = Grupo, y = Cantidad, fill = Grupo)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Sexo", y = "Frecuencia") +
+  ggtitle("Hombres solteros v/S Mujeres solteras") +
+  theme_minimal()
+
+print(g3)
+
+# De acuerdo al gráfico elaborado se puede observar una diferencia notable
+# entre la cantidad de hombres y mujeres solteros(as) encontrados, con una 
+# concentración en mujeres por sobre los hombres.
+
+# Se define la hipótesis nula y alternativa junto con su respectiva notación matemática:
+
+# H0: La media de hombres y mujeres soltero/as es igual. (μA - μB = 0)
+# HA: La media de hombres y mujeres soltero/as es diferente. (μA - μB != 0)
+
+# En este punto, se identifica que debemos para comparar una variable continua (media)
+# en dos muestras independientes. Por lo que, en este caso, una buena alternativa robusta
+# es la prueba de Yuen con bootstrapping usando como estimador la media.
+B <- 5000
+
+# Se establece el alfa:
+alfa <- 0.05
+
+# Se realiza la prueba anteriormente descrita
+prueba_yuen <- pb2gen(datos_solteros$Cantidad ~ datos_solteros$Grupo, data = datos_solteros, est = "mean", nboot = B)
+print(prueba_yuen)
+
+# Puesto que p = 0,5588 y este es mayor que el alfa previamente definido (0,05), se falla en rechazar H0 en favor de Ha.
+# Por lo tanto, concluimos con 95% confianza, que la media de hombres y mujeres solteros es igual.
+
+
+# -------------------------------------------------------------------------------
+
 # 3. Analice la segunda pregunta abordada en el ejercicio práctico 11, con los mismos datos, utilizando un
 # método robusto adecuado.
