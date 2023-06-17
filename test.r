@@ -200,7 +200,14 @@ datos <- read.csv2(file.choose(), stringsAsFactors = TRUE)
 # mujeres solteros/as es el mismo?
 
 # La pregunta anteriormente planteada responde a la comparación entre la media
-# de dos grupos independientes de personas encuestadas
+# de dos grupos independientes de personas encuestadas, por lo que:
+
+
+# Se definen la hipótesis nula y alternativa junto con su respectiva notación matemática:
+
+# H0: La media de hombres y mujeres soltero/as es igual. (μA - μB = 0)
+# HA: La media de hombres y mujeres soltero/as es diferente. (μA - μB != 0)
+
 
 # A continuación se fija una semilla propia
 set.seed(349)
@@ -214,39 +221,39 @@ muestra_hogares <- muestra_hogares %>% select(sexo, region, ecivil)
 # Se filtra por todas las personas que tienen un estado civil Soltero(a).
 muestra_hogares <- muestra_hogares %>% filter(ecivil == "Soltero(a)")
 
-# Se obtiene los datos referentes a hombres solteros de acuerdo a la muestra obtenida anteriormente
-hombres_solteros_rm <- muestra_hogares %>% filter(sexo == "Hombre")
+# Se obtiene los datos referentes a hombres  y mujeres solteras de acuerdo a la muestra obtenida anteriormente
+hombres_solteros<- muestra_hogares %>% filter(sexo == "Hombre")
+mujeres_solteras <- muestra_hogares %>% filter(sexo == "Mujer")
 
-# Se obtiene los datos referentes a mujeres solteras de acuerdo a la muestra obtenida anteriormente
-mujeres_solteras_rm <- muestra_hogares %>% filter(sexo == "Mujer")
+# Obtenemos la cantidad de hombres por region y mujeres por region
+hombres_por_region <- hombres_solteros %>% group_by(region) %>% count()
+mujeres_por_region <- mujeres_solteras %>% group_by(region) %>% count()
 
-# Se extrae el número de hombres y mujeres solteras de acuerdo a la muestra obtenida
-n_hombres_solteros <- nrow(hombres_solteros_rm)
-n_mujeres_solteras <- nrow(mujeres_solteras_rm)
+# Unimos las muestras anteriores por la columna "region" en una tabla temporal
+tabla_temporal <- merge(hombres_por_region, mujeres_por_region, by = "region", all = TRUE)
 
-# Crear un dataframe con los datos
-datos_solteros <- data.frame(Grupo = c("Hombres",
-                                       "Mujeres"),
-                             Cantidad = c(n_hombres_solteros,
-                                          n_mujeres_solteras))
+# Renombramos las columnas
+colnames(tabla_temporal)[2] <- "Hombres"
+colnames(tabla_temporal)[3] <- "Mujeres"
 
-# Se crea el grafico correspondiente
-g3 <- ggplot(datos_solteros, aes(x = Grupo, y = Cantidad, fill = Grupo)) +
-  geom_bar(stat = "identity") +
-  labs(x = "Sexo", y = "Frecuencia") +
-  ggtitle("Hombres solteros v/S Mujeres solteras") +
-  theme_minimal()
+# Reemplazar NA por 0, lo cual indica que no hay hombres o mujeres en dicha region
+tabla_temporal$Hombres <- replace(tabla_temporal$Hombres, is.na(tabla_temporal$Hombres), 0)
+tabla_temporal$Mujeres <- replace(tabla_temporal$Mujeres, is.na(tabla_temporal$Mujeres), 0)
 
+# creamos la tabla final
+sexo <- factor(c(rep("Hombres", length(tabla_temporal$Hombres)), rep("Mujeres", length(tabla_temporal$Mujeres))))
+cantidad <- c(tabla_temporal$Hombres, tabla_temporal$Mujeres)
+datos2 <- data.frame(sexo, cantidad)
+
+# Veamos ahora el histograma de los datos.
+g3 <- gghistogram(datos2, x = "cantidad", xlab = "sexo", color = "sexo",
+                  fill = "sexo", bins = 30)
+
+g3 <- g3 + facet_grid(~ sexo)
 print(g3)
 
-# De acuerdo al gráfico elaborado se puede observar una diferencia notable
-# entre la cantidad de hombres y mujeres solteros(as) encontrados, con una 
-# concentración en mujeres por sobre los hombres.
-
-# Se define la hipótesis nula y alternativa junto con su respectiva notación matemática:
-
-# H0: La media de hombres y mujeres soltero/as es igual. (μA - μB = 0)
-# HA: La media de hombres y mujeres soltero/as es diferente. (μA - μB != 0)
+# Podemos ver claramente que los datos no se asemejan en absoluto a una
+# distribución normal, con  una fuerte desviación hacia la izquierda.
 
 # En este punto, se identifica que debemos para comparar una variable continua (media)
 # en dos muestras independientes. Por lo que, en este caso, una buena alternativa robusta
@@ -256,37 +263,14 @@ B <- 5000
 # Se establece el alfa:
 alfa <- 0.05
 
-# Calcular la cantidad de hombres y mujeres por región
-hombres_por_region <- muestra_hogares %>% filter(sexo == "Hombre") %>% count(region)
-mujeres_por_region <- muestra_hogares %>% filter(sexo == "Mujer") %>% count(region)
+# Realizar la prueba de Yuen con bootstrapping
+prueba_yuen_boots <- pb2gen(cantidad ~ sexo, data = datos2, est = "mean",nboot = B)
 
-# Unir los datos con la tabla existente
-muestra_hogares <- merge(muestra_hogares, hombres_por_region, by = "region", all.x = TRUE)
-muestra_hogares <- merge(muestra_hogares, mujeres_por_region, by = "region", all.x = TRUE)
+print(prueba_yuen_boots)
 
-# Renombrar las columnas
-colnames(muestra_hogares)[4] <- "Hombres_por_region"
-colnames(muestra_hogares)[5] <- "Mujeres_por_region"
-
-# Reemplazar NA por 0
-muestra_hogares$Hombres_por_region <- replace(muestra_hogares$Hombres_por_region, is.na(muestra_hogares$Hombres_por_region), 0)
-muestra_hogares$Mujeres_por_region <- replace(muestra_hogares$Mujeres_por_region, is.na(muestra_hogares$Mujeres_por_region), 0)
-
-# Crear nueva columna con la suma de hombres y mujeres por región
-muestra_hogares$Total_por_region <- muestra_hogares$Hombres_por_region + muestra_hogares$Mujeres_por_region
-
-# Se seleccionan los datos de interés según la interrogante propuesta
-muestra_hogares <- muestra_hogares %>% select(region, Hombres_por_region, Mujeres_por_region, Total_por_region)
-
-# Eliminar filas duplicadas
-muestra_hogares <- distinct(muestra_hogares, .keep_all = TRUE)
-
-# Realizar la prueba de Yuen
-prueba_yuen <- pb2gen(Total_por_region ~ region, data = muestra_hogares, est = "mean", nboot = B)
-print(prueba_yuen)
-
-# Puesto que p = 0,3036 y este es mayor que el alfa previamente definido (0,05), se falla en rechazar H0 en favor de Ha.
-# Por lo tanto, concluimos con 95% confianza, que la media de hombres y mujeres solteros es igual.
+# Puesto que p = 0.0682 y este es mayor que el alfa previamente definido (0,05), se falla en rechazar 
+# H0 en favor de Ha. Por lo tanto, concluimos con 95% confianza, que la media de hombres y mujeres 
+# solteros es igual.
 
 
 # -------------------------------------------------------------------------------
