@@ -22,7 +22,7 @@ if(!require(tidyr)){
 }
 
 if(!require(WRS2)){
-  install.packages("tidyr", dependencies = TRUE)
+  install.packages("WRS2", dependencies = TRUE)
   require(WRS2)
 }
 
