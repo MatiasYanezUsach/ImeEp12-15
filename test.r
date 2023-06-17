@@ -189,90 +189,97 @@ print(prueba)
 # que en esta etapa de desarrollo, el peso de ambas variedades es similar.
 
 # -------------------------------------------------------------------------------
-
-# 2. Analice la primera pregunta abordada en el ejercicio práctico 11, con los mismos datos, utilizando un
-# método robusto adecuado.
+# 2. Analizar la primera pregunta abordada en el ejercicio práctico 11, utilizando un método robusto adecuado.
 
 # Cargar datos
 datos <- read.csv2(file.choose(), stringsAsFactors = TRUE)
 
-# En analizar este caso, vamos a considerar la pregunta: ¿En promedio, el número de hombres y 
-# mujeres solteros/as es el mismo?
+# En este análisis, se aborda la pregunta: ¿En promedio, el número de hombres y mujeres 
+# solteros/as es el mismo?
 
-# La pregunta anteriormente planteada responde a la comparación entre la media
-# de dos grupos independientes de personas encuestadas, por lo que:
-
+# La pregunta planteada anteriormente implica comparar la media de dos grupos independientes
+# de personas encuestadas, por lo tanto:
 
 # Se definen la hipótesis nula y alternativa junto con su respectiva notación matemática:
 
-# H0: La media de hombres y mujeres soltero/as es igual. (μA - μB = 0)
-# HA: La media de hombres y mujeres soltero/as es diferente. (μA - μB != 0)
+# H0: La media de hombres y mujeres solteros/as es igual. (μA - μB = 0)
+# HA: La media de hombres y mujeres solteros/as es diferente. (μA - μB != 0)
 
-
-# A continuación se fija una semilla propia
-set.seed(349)
+# A continuación, se fija una semilla propia
+set.seed(449)
 
 # Se selecciona una muestra aleatoria de hogares considerando: 250 < n < 500
 muestra_hogares <- sample_n(datos, 369)
 
-# Se seleccionan los datos de interés según la interrogante propuesta
+# Se seleccionan los datos de interés según la pregunta planteada
 muestra_hogares <- muestra_hogares %>% select(sexo, region, ecivil)
 
-# Se filtra por todas las personas que tienen un estado civil Soltero(a).
+# Se filtra por todas las personas que tienen un estado civil "Soltero(a)"
 muestra_hogares <- muestra_hogares %>% filter(ecivil == "Soltero(a)")
 
-# Se obtiene los datos referentes a hombres  y mujeres solteras de acuerdo a la muestra obtenida anteriormente
-hombres_solteros<- muestra_hogares %>% filter(sexo == "Hombre")
+# Se obtienen los datos referentes a hombres y mujeres solteras de acuerdo a la 
+# muestra obtenida anteriormente
+hombres_solteros <- muestra_hogares %>% filter(sexo == "Hombre")
 mujeres_solteras <- muestra_hogares %>% filter(sexo == "Mujer")
 
-# Obtenemos la cantidad de hombres por region y mujeres por region
+# Se obtiene la cantidad de hombres por región y mujeres por región
 hombres_por_region <- hombres_solteros %>% group_by(region) %>% count()
 mujeres_por_region <- mujeres_solteras %>% group_by(region) %>% count()
 
-# Unimos las muestras anteriores por la columna "region" en una tabla temporal
+# Se unen las muestras anteriores por la columna "region" en una tabla temporal
 tabla_temporal <- merge(hombres_por_region, mujeres_por_region, by = "region", all = TRUE)
 
-# Renombramos las columnas
+# Se renombran las columnas
 colnames(tabla_temporal)[2] <- "Hombres"
 colnames(tabla_temporal)[3] <- "Mujeres"
 
-# Reemplazar NA por 0, lo cual indica que no hay hombres o mujeres en dicha region
+# Reemplazar NA por 0, lo cual indica que no hay hombres o mujeres en dicha region, a partir
+# de la muestra seleccionada
 tabla_temporal$Hombres <- replace(tabla_temporal$Hombres, is.na(tabla_temporal$Hombres), 0)
 tabla_temporal$Mujeres <- replace(tabla_temporal$Mujeres, is.na(tabla_temporal$Mujeres), 0)
 
-# creamos la tabla final
+# Se crea la tabla final
 sexo <- factor(c(rep("Hombres", length(tabla_temporal$Hombres)), rep("Mujeres", length(tabla_temporal$Mujeres))))
 cantidad <- c(tabla_temporal$Hombres, tabla_temporal$Mujeres)
 datos2 <- data.frame(sexo, cantidad)
 
-# Veamos ahora el histograma de los datos.
-g3 <- gghistogram(datos2, x = "cantidad", xlab = "sexo", color = "sexo",
+# Se muestra el histograma de los datos
+g3 <- gghistogram(datos2, x = "cantidad", xlab = "regiones", ylab = "frecuencia", color = "sexo",
                   fill = "sexo", bins = 30)
+
+# Cabe mencionar que el gráfico anterior hace referencia a las regiones de forma numérica del 1 al 14
+# en orden según aparecen en las tablas anteriores.
 
 g3 <- g3 + facet_grid(~ sexo)
 print(g3)
 
-# Podemos ver claramente que los datos no se asemejan en absoluto a una
-# distribución normal, con  una fuerte desviación hacia la izquierda.
+# Podemos observar claramente que los datos no se asemejan en absoluto a una distribución normal y  
+#  que se tiene  una fuerte asimetría hacia la izquierda.
 
-# En este punto, se identifica que debemos para comparar una variable continua (media)
-# en dos muestras independientes. Por lo que, en este caso, una buena alternativa robusta
-# es la prueba de Yuen con bootstrapping usando como estimador la media.
+# Veamos ahora un gráfico tipo Q-Q
+g4 <- ggqqplot(datos2, x = "cantidad", faced.by = "sexo", palette = c("blue", "red"), color = "sexo",
+               fill = "sexo", bins = 30)
+
+print(g4)
+
+# Tal y como se pudo observar en el gráfico anterior, no se nota una presencia de valores atípicos.
+
+# En este punto, se identifica que debemos comparar una variable continua (media) en dos muestras 
+# independientes. Por lo tanto, en este caso, una buena alternativa robusta es la prueba de Yuen 
+# con bootstrapping, utilizando la media como estimador.
 B <- 5000
 
-# Se establece el alfa:
+# Se establece el nivel de significancia (alfa)
 alfa <- 0.05
 
-# Realizar la prueba de Yuen con bootstrapping
-prueba_yuen_boots <- pb2gen(cantidad ~ sexo, data = datos2, est = "mean",nboot = B)
+# Se Realiza la prueba de Yuen con bootstrapping
+prueba_yuen_boots <- pb2gen(cantidad ~ sexo, data = datos2, est = "mean", nboot = B)
 
 print(prueba_yuen_boots)
 
-# Puesto que p = 0.0682 y este es mayor que el alfa previamente definido (0,05), se falla en rechazar 
-# H0 en favor de Ha. Por lo tanto, concluimos con 95% confianza, que la media de hombres y mujeres 
-# solteros es igual.
-
-
+# Puesto que p = 0.1942 y este valor es mayor que el alfa previamente definido (0.05),
+# se falla en rechazae H0 a favor de Ha. Por lo tanto, se concluye con un 95% de confianza 
+# que la media de hombres y mujeres solteros es la misma.
 # -------------------------------------------------------------------------------
 
 # 3. Analice la segunda pregunta abordada en el ejercicio práctico 11, con los mismos datos, utilizando un
