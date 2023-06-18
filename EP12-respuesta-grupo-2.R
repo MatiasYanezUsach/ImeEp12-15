@@ -219,15 +219,15 @@ set.seed(449)
 muestra_hogares <- sample_n(datos, 369)
 
 # Se seleccionan los datos de interés según la pregunta planteada
-muestra_hogares <- muestra_hogares %>% select(genero, region, ecivil)
+muestra_hogares <- muestra_hogares %>% select(sexo, region, ecivil)
 
 # Se filtra por todas las personas que tienen un estado civil "Soltero(a)"
 muestra_hogares <- muestra_hogares %>% filter(ecivil == "Soltero(a)")
 
 # Se obtienen los datos referentes a hombres y mujeres solteras de acuerdo a la 
 # muestra obtenida anteriormente
-hombres_solteros <- muestra_hogares %>% filter(genero == "Hombre")
-mujeres_solteras <- muestra_hogares %>% filter(genero == "Mujer")
+hombres_solteros <- muestra_hogares %>% filter(sexo == "Hombre")
+mujeres_solteras <- muestra_hogares %>% filter(sexo == "Mujer")
 
 # Se obtiene la cantidad de hombres por región y mujeres por región
 hombres_por_region <- hombres_solteros %>% group_by(region) %>% count()
@@ -246,28 +246,35 @@ tabla_temporal$Hombres <- replace(tabla_temporal$Hombres, is.na(tabla_temporal$H
 tabla_temporal$Mujeres <- replace(tabla_temporal$Mujeres, is.na(tabla_temporal$Mujeres), 0)
 
 # Se crea la tabla final
-genero <- factor(c(rep("Hombres", length(tabla_temporal$Hombres)), rep("Mujeres", length(tabla_temporal$Mujeres))))
+sexo <- factor(c(rep("Hombres", length(tabla_temporal$Hombres)), rep("Mujeres", length(tabla_temporal$Mujeres))))
 cantidad <- c(tabla_temporal$Hombres, tabla_temporal$Mujeres)
-datos2 <- data.frame(genero, cantidad)
+datos2 <- data.frame(sexo, cantidad)
 
 # Se muestra el histograma de los datos
-g3 <- gghistogram(datos2, x = "cantidad", xlab = "regiones", ylab = "frecuencia", color = "genero",
-                  fill = "genero", bins = 30)
+g3 <- gghistogram(datos2, x = "cantidad", xlab = "regiones", ylab = "frecuencia", color = "sexo",
+                  fill = "sexo", bins = 30)
 
 # Cabe mencionar que el eje X del gráfico anterior hace referencia a las regiones de forma 
 # numérica del 1 al 14 en orden según aparecen en las tablas anteriores.
 
-g3 <- g3 + facet_grid(~ genero)
+g3 <- g3 + facet_grid(~ sexo)
 print(g3)
 
 # Podemos observar claramente que los datos no se asemejan en absoluto a una distribución normal y  
 #  que se tiene  una fuerte asimetría hacia la izquierda.
 
 # Veamos ahora un gráfico tipo Q-Q
-g4 <- ggqqplot(datos2, x = "cantidad", faced.by = "genero", palette = c("blue", "red"), color = "genero",
-               fill = "genero", bins = 30)
+datos2_hombres <- datos2 %>% filter(sexo == "Hombres")
+datos2_mujer <- datos2 %>% filter(sexo == "Mujeres")
+
+g4 <- ggqqplot(datos2_hombres, x = "cantidad", faced.by = "sexo", color = "steelblue",
+               fill = "steelblue", bins = 30, title = "cantidad hombres solteros vs. distribución normal")
+
+g5 <- ggqqplot(datos2_mujer, x = "cantidad", faced.by = "sexo", color = "steelblue",
+               fill = "steelblue", bins = 30, title = "cantidad mujeres solteras vs. distribución normal")
 
 print(g4)
+print(g5)
 
 # Tal y como se pudo observar en el gráfico anterior, no se nota una presencia de valores atípicos.
 
@@ -280,7 +287,7 @@ B <- 5000
 alfa <- 0.05
 
 # Se Realiza la prueba de Yuen con bootstrapping
-prueba_yuen_boots <- pb2gen(cantidad ~ genero, data = datos2, est = "mean", nboot = B)
+prueba_yuen_boots <- pb2gen(cantidad ~ sexo, data = datos2, est = "mean", nboot = B)
 
 print(prueba_yuen_boots)
 
@@ -329,11 +336,11 @@ muestra_hogares2 <- muestra_hogares2 %>% filter(region == "Region de Valparaiso"
 muestra_hogares2 <- droplevels(muestra_hogares2)
 
 # Veamos ahora el histograma de los datos.
-g5 <- gghistogram(muestra_hogares2, x = "edad", xlab = "Region", color = "region",
+g6 <- gghistogram(muestra_hogares2, x = "edad", xlab = "Region", color = "region",
                   fill = "region", bins = 30)
 
-g5 <- g5 + facet_grid(~ region)
-print(g5)
+g6 <- g6 + facet_grid(~ region)
+print(g6)
 
 # Test Shapiro-Wilk para condiciones de normalidad
 
