@@ -278,7 +278,7 @@ prueba_yuen_boots <- pb2gen(cantidad ~ sexo, data = datos2, est = "mean", nboot 
 print(prueba_yuen_boots)
 
 # Puesto que p = 0.1942 y este valor es mayor que el alfa previamente definido (0.05),
-# se falla en rechazae H0 a favor de Ha. Por lo tanto, se concluye con un 95% de confianza 
+# se falla en rechazar H0 a favor de Ha. Por lo tanto, se concluye con un 95% de confianza 
 # que la media de hombres y mujeres solteros es la misma.
 # -------------------------------------------------------------------------------
 
