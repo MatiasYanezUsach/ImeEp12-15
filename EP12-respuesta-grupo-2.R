@@ -254,8 +254,8 @@ datos2 <- data.frame(sexo, cantidad)
 g3 <- gghistogram(datos2, x = "cantidad", xlab = "regiones", ylab = "frecuencia", color = "sexo",
                   fill = "sexo", bins = 30)
 
-# Cabe mencionar que el gráfico anterior hace referencia a las regiones de forma numérica del 1 al 14
-# en orden según aparecen en las tablas anteriores.
+# Cabe mencionar que el eje X del gráfico anterior hace referencia a las regiones de forma 
+# numérica del 1 al 14 en orden según aparecen en las tablas anteriores.
 
 g3 <- g3 + facet_grid(~ sexo)
 print(g3)
@@ -292,7 +292,7 @@ print(prueba_yuen_boots)
 # 3. Analice la segunda pregunta abordada en el ejercicio práctico 11, con los mismos datos, utilizando un
 # método robusto adecuado.
 
-#Recordemos la pregunta 2 del Ep11:
+# Recordemos la pregunta 2 del Ep11:
 
 # Propongan una pregunta de investigación original, que involucre la comparación
 # de las medias de más de dos grupos independientes (más abajo se dan unos
@@ -301,13 +301,16 @@ print(prueba_yuen_boots)
 # utilizando bootstrapping. Solo por ejercicio académico, aplique un análisis
 # post-hoc con bootstrapping aunque este no sea necesario.
 
-# En este análisis, se aborda la pregunta: ¿En promedio, la edad de las personas es igual en las regiones de 
-# Valparaiso, Biobio y Antofagasta?
+# En este análisis, se aborda la pregunta: ¿En promedio, es igual la edad de las personas en las regiones de 
+# Valparaíso, Biobío y Antofagasta?
 
-# El estudio corresponde a una prueba ANOVA para analizar si existen diferencias significativas entre los grupos.
+# El estudio corresponde a una prueba ANOVA para analizar si existen diferencias significativas 
+# entre los grupos, por lo que formularemos las hipótesis correspondientes:
 
-# H0: No hay diferencia significativa entre las edades de las regiones de Valparaiso, Biobio y Antofagasta.
-# H1: Hay diferencia significativa entre las edades de las regiones de Valparaiso, Biobio y Antofagasta.
+# H0: No hay diferencia significativa entre las edades de las regiones de Valparaíso, Biobío y Antofagasta.
+#     (μA = μB = μC)
+# H1: Hay diferencia significativa entre las edades de las regiones de Valparaíso, Biobío y Antofagasta.
+#     (μA != μB != μC)
 
 # Se fija un valor para alfa
 alfa <- 0.05
@@ -321,12 +324,12 @@ muestra_hogares2 <- sample_n(datos, 539)
 # Se seleccionan los datos de interés según la interrogante propuesta
 muestra_hogares2 <- muestra_hogares2 %>% select(region, edad, id.vivienda)
 muestra_hogares2 <- muestra_hogares2 %>% filter(region == "Region de Valparaiso" |
-                                                region == "Region de Antofagasta" |
-                                                region == "Region del Biobio")
+                                                  region == "Region de Antofagasta" |
+                                                  region == "Region del Biobio")
 muestra_hogares2 <- droplevels(muestra_hogares2)
 
 # Veamos ahora el histograma de los datos.
-g5 <- gghistogram(muestra_hogares2, x = "edad", xlab = "region", color = "region",
+g5 <- gghistogram(muestra_hogares2, x = "edad", xlab = "Region", color = "region",
                   fill = "region", bins = 30)
 
 g5 <- g5 + facet_grid(~ region)
@@ -344,26 +347,55 @@ print(shapiro.test(region_biobio$edad))
 
 # Comprobación de similitud a distribución normal mediante gráfico Q-Q
 g1_q_q <- ggqqplot(data = region_valparaiso$edad,
-                       color = "steelblue", 
-                       xlab = "Teórico", 
-                       ylab = "Muestra", 
-                       title = "Edades de Valparaiso vs. distribución normal")
+                   color = "steelblue", 
+                   xlab = "Teórico", 
+                   ylab = "Muestra", 
+                   title = "Edades de Valparaíso vs. distribución normal")
 print(g1_q_q)
 
 g2_q_q <- ggqqplot(data = region_antofagasta$edad, 
-                       color = "steelblue",
-                       xlab = "Teórico",
-                       ylab = "Muestra",
-                       title = "Edades de Antofagasta vs. distribución normal")
+                   color = "steelblue",
+                   xlab = "Teórico",
+                   ylab = "Muestra",
+                   title = "Edades de Antofagasta vs. distribución normal")
 print(g2_q_q)
 
 g3_q_q <- ggqqplot(data = region_biobio$edad, 
-                       color = "steelblue",
-                       xlab = "Teórico",
-                       ylab = "Muestra",
-                       title = "Edadesdades de Biobio vs. distribución normal")
+                   color = "steelblue",
+                   xlab = "Teórico",
+                   ylab = "Muestra",
+                   title = "Edades de Biobío vs. distribución normal")
 print(g3_q_q)
 
-# Se puede observar que los datos para la región del Biobio son problemáticos debido a que no cumple con la
+# Se puede observar que los datos para la Región del Biobío son problemáticos debido a que no cumple con la
 # condición de normalidad, ya que el valor p obtenido por el test Shapiro-Wilk es menor al alfa definido, 
-# por lo que se aplica método robusto de ANOVA.
+# por lo que se aplicará una alternativa robusta para ANOVA de una vía, donde para ello se ha escogido la
+# función t1waybt, que realiza un procedimiento similar pero utilizando la media truncada y remuestreo.
+
+# Se define la poda, la cual estará enfocada en un 20%
+poda <- 0.2
+
+# Se define la cantidad de remuestreos 
+B <- 5000
+
+prueba_t1waybt <- t1waybt(edad ~ region, data = muestra_hogares2, tr = poda, nboot = B)
+print(prueba_t1waybt)
+
+# Puesto que el valor p obtenido es 0.4868 y este es mayor que nuestro alfa (0.05), no rechazamos 
+# H0 en favor de HA. Por lo tanto, concluimos con un 95% de confianza que las regiones de Valparaíso, Biobío 
+# y Antofagasta no tienen una diferencia significativa en sus edades.
+
+# Puesto que se determinó que no tienen una diferencia significativa, no es necesario aplicar un procedimiento
+# post-hoc, pero por motivos académicos, se aplicará de todas maneras.
+
+prueba_postHoc <- mcppb20(edad ~ region, data = muestra_hogares2, tr = poda, nboot = B)
+print(prueba_postHoc)
+
+# Los resultados obtenidos en la prueba post-hoc son:
+
+# Región de Valparaíso vs. Región del Biobío      0.2614
+# Región de Valparaíso vs. Región de Antofagasta  0.6992
+# Región del Biobío vs. Región de Antofagasta     0.4268
+
+# Entonces, en base al procedimiento post-hoc, podemos concluir con un 95% de confianza
+# que las edades entre las regiones no tienen diferencias significativas.
