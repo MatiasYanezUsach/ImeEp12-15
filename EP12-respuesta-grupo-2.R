@@ -186,10 +186,17 @@ print(prueba)
 # la hipótesis nula en favor de la hipótesis alternativa. Por lo tanto, se concluye con un 95% de confianza 
 # que no hay evidencia suficiente para afirmar que existe una diferencia significativa entre los pesos de 
 # las variedades de Winter Nelly y Golden Bosc en la semana 15 de crecimiento. Por lo tanto, se concluye 
-# que en esta etapa de desarrollo, el peso de ambas variedades es similar.
+# que en esta etapa de desarrollo, las medias geometricas de las variables son iguales.
 
 # -------------------------------------------------------------------------------
 # 2. Analizar la primera pregunta abordada en el ejercicio práctico 11, utilizando un método robusto adecuado.
+
+#Recordemos la pregunta 1 del Ep11:
+# Propongan una pregunta de investigación original, que involucre la comparación
+# de las medias de dos grupos independientes (más abajo se dan unos ejemplos).
+# Fijando una semilla propia, seleccionen una muestra aleatoria de hogares 
+# (250 < n < 500) y respondan la pregunta propuesta utilizando una simulación
+# Monte Carlo.
 
 # Cargar datos
 datos <- read.csv2(file.choose(), stringsAsFactors = TRUE)
@@ -208,7 +215,7 @@ datos <- read.csv2(file.choose(), stringsAsFactors = TRUE)
 # A continuación, se fija una semilla propia
 set.seed(449)
 
-# Se selecciona una muestra aleatoria de hogares considerando: 250 < n < 500
+# Se selecciona una muestra aleatoria de hogares:
 muestra_hogares <- sample_n(datos, 369)
 
 # Se seleccionan los datos de interés según la pregunta planteada
@@ -284,3 +291,37 @@ print(prueba_yuen_boots)
 
 # 3. Analice la segunda pregunta abordada en el ejercicio práctico 11, con los mismos datos, utilizando un
 # método robusto adecuado.
+
+#Recordemos la pregunta 2 del Ep11:
+
+# Propongan una pregunta de investigación original, que involucre la comparación
+# de las medias de más de dos grupos independientes (más abajo se dan unos
+# ejemplos). Fijando una semilla distinta a la anterior, seleccionen una muestra
+# aleatoria de hogares (400 < n < 600) y respondan la pregunta propuesta
+# utilizando bootstrapping. Solo por ejercicio académico, aplique un análisis
+# post-hoc con bootstrapping aunque este no sea necesario.
+
+# En este análisis, se aborda la pregunta: ¿En promedio, la edad de las personas es igual en las regiones de 
+# Valparaiso, Biobio y Antofagasta?
+
+# A continuación se fija una semilla propia distinta a la anterior
+set.seed(863)
+
+# Se selecciona una muestra aleatoria de hogares considerando:
+muestra_hogares2 <- sample_n(datos, 539)
+
+# Se seleccionan los datos de interés según la interrogante propuesta
+muestra_hogares2 <- muestra_hogares2 %>% select(region, edad, id.vivienda)
+muestra_hogares2 <- muestra_hogares2 %>% filter(region == "Region de Valparaiso" |
+                                                region == "Region de Antofagasta" |
+                                                region == "Region del Biobio")
+muestra_hogares2 <- droplevels(muestra_hogares2)
+
+# Veamos ahora el histograma de los datos.
+g5 <- gghistogram(muestra_hogares2, x = "edad", xlab = "region", color = "region",
+                  fill = "region", bins = 30)
+
+g5 <- g5 + facet_grid(~ region)
+print(g5)
+
+
