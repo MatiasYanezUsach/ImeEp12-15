@@ -304,6 +304,14 @@ print(prueba_yuen_boots)
 # En este análisis, se aborda la pregunta: ¿En promedio, la edad de las personas es igual en las regiones de 
 # Valparaiso, Biobio y Antofagasta?
 
+# El estudio corresponde a una prueba ANOVA para analizar si existen diferencias significativas entre los grupos.
+
+# H0: No hay diferencia significativa entre las edades de las regiones de Valparaiso, Biobio y Antofagasta.
+# H1: Hay diferencia significativa entre las edades de las regiones de Valparaiso, Biobio y Antofagasta.
+
+# Se fija un valor para alfa
+alfa <- 0.05
+
 # A continuación se fija una semilla propia distinta a la anterior
 set.seed(863)
 
@@ -324,4 +332,38 @@ g5 <- gghistogram(muestra_hogares2, x = "edad", xlab = "region", color = "region
 g5 <- g5 + facet_grid(~ region)
 print(g5)
 
+# Test Shapiro-Wilk para condiciones de normalidad
 
+region_valparaiso <- muestra_hogares2 %>% filter(region == "Region de Valparaiso")
+region_antofagasta <- muestra_hogares2 %>% filter(region == "Region de Antofagasta")
+region_biobio <- muestra_hogares2 %>% filter(region == "Region del Biobio")
+
+print(shapiro.test(region_valparaiso$edad))
+print(shapiro.test(region_antofagasta$edad))
+print(shapiro.test(region_biobio$edad))
+
+# Comprobación de similitud a distribución normal mediante gráfico Q-Q
+g1_q_q <- ggqqplot(data = region_valparaiso$edad,
+                       color = "steelblue", 
+                       xlab = "Teórico", 
+                       ylab = "Muestra", 
+                       title = "Edades de Valparaiso vs. distribución normal")
+print(g1_q_q)
+
+g2_q_q <- ggqqplot(data = region_antofagasta$edad, 
+                       color = "steelblue",
+                       xlab = "Teórico",
+                       ylab = "Muestra",
+                       title = "Edades de Antofagasta vs. distribución normal")
+print(g2_q_q)
+
+g3_q_q <- ggqqplot(data = region_biobio$edad, 
+                       color = "steelblue",
+                       xlab = "Teórico",
+                       ylab = "Muestra",
+                       title = "Edadesdades de Biobio vs. distribución normal")
+print(g3_q_q)
+
+# Se puede observar que los datos para la región del Biobio son problemáticos debido a que no cumple con la
+# condición de normalidad, ya que el valor p obtenido por el test Shapiro-Wilk es menor al alfa definido, 
+# por lo que se aplica método robusto de ANOVA.
