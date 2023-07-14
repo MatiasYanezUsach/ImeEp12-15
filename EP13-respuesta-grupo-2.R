@@ -78,7 +78,7 @@ if(!require(tidyr)){
 # Antes de resolver la problemática, en primer lugar debemos obtener los datos:
 datos <- read.csv2(file.choose(), stringsAsFactors = TRUE)
 
-# Definimos la semilla con el los últimos 4 dígitos del rut del participante 
+# Definimos la semilla con los últimos 4 dígitos del rut del participante 
 # Matias Yañez, el cual es el menor de todos los integrantes
 set.seed(0291)
 
@@ -86,6 +86,7 @@ set.seed(0291)
 muestra <- sample_n(datos, 100)
 muestra[["clase"]] <- factor(muestra[["clase"]])
 
-
-
+# Seleccionamos 6 posibles variables predictoras
+muestra_6 <- sample_n(muestra, 6)
+print (muestra_6$calidad)
 
