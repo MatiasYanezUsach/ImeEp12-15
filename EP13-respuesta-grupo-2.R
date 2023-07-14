@@ -15,6 +15,11 @@ if(!require(tidyr)){
   require(tidyr)
 }
 
+if(!require(ggpubr)){
+  install.packages("ggpubr", dependencies = TRUE)
+  require(ggpubr)
+}
+
 ################################################################################
 # contexto:
 
@@ -124,8 +129,8 @@ cat("Las variables predictoras escogidas de forma aleatoria son:\n",predictoras)
 # respuesta (calidad) anteriormente definida.
 
 # Evaluar la correlación de las variables restantes con la respuesta.
-muestra <- muestra %>% select(!predictoras)
-correlacion <- cor(muestra, y = respuesta)
+sub_muestra <- muestra %>% select(!predictoras)
+correlacion <- cor(sub_muestra, y = respuesta)
 print(correlacion)
 
 # Una vez creada la matriz de correlación, obtenemos la variable que tenga mayor
@@ -137,11 +142,23 @@ cat("La mejor variable es:",predictor)
 # Una vez obtenida la mejor variable para determinar la calidad de los vinos
 # daremos paso a construir el modelo de regresión lineal simple, para ello en
 # primer lugar juntaremos la variable de respuestas con la variable predictora
-datos_rls <- muestra %>% select(predictor)
+datos_rls <- sub_muestra %>% select(predictor)
 datos_rls <- cbind(datos_rls, respuesta)
 
+modelo <- lm(respuesta ~ alcohol, data = datos_rls)
+print(summary(modelo))
 
+# Graficar el modelo.
+p <- ggscatter(datos_rls, x = "alcohol", y = "respuesta", color = "blue", fill = "blue",
+               xlab = "Alcohol [grados]", ylab = "Calidad [Puntuacion]")
 
+p <- p + geom_smooth(method = lm, se = FALSE, colour = "red")
+print(p)
 
+# Crear gráficos para evaluar el modelo.
+plot(modelo)
 
+# Agregamos la variable predictora anterior al conjunto de 6 variables aleatorias anterior.
+nuevas_predictoras <- append(predictoras,predictor)
+nueva_sub_muestra <- cbind(sub_muestra,muestra$alcohol)
 
