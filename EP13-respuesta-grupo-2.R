@@ -78,15 +78,70 @@ if(!require(tidyr)){
 # Antes de resolver la problemática, en primer lugar debemos obtener los datos:
 datos <- read.csv2(file.choose(), stringsAsFactors = TRUE)
 
-# Definimos la semilla con los últimos 4 dígitos del rut del participante 
-# Matias Yañez, el cual es el menor de todos los integrantes
+# Definimos la semilla con los últimos 4 dígitos del RUT del participante 
+# Matias Yañez (20.580.291-6), el cual es el menor de todos los integrantes.
 set.seed(0291)
 
 # Cogemos la muestra de los 100 vinos
 muestra <- sample_n(datos, 100)
 muestra[["clase"]] <- factor(muestra[["clase"]])
 
-# Seleccionamos 6 posibles variables predictoras
-muestra_6 <- sample_n(muestra, 6)
-print (muestra_6$calidad)
+# Separamos la variable de respuesta
+respuesta <- muestra[["calidad"]]
+muestra[["calidad"]] <- NULL
+
+# La variable de respuesta escogida es "calidad" debido a que en este caso, la 
+# calidad del vino es una variable de interés y se espera que esté influenciada
+# por las características medibles del vino, como la acidez, el contenido de 
+# azúcar, el pH, etc.
+
+# Seleccionamos de forma aleatoria las 6 variables predictoras, para ello 
+# obtenemos, los nombres de cada variable
+variables <- colnames(muestra)
+
+# Luego tomamos 6 de forma aleatoria
+predictoras <- sample(variables, 6, replace = FALSE)
+cat("Las variables predictoras escogidas de forma aleatoria son:\n",predictoras)
+
+# Como las variables predictoras obtenidas en el momento de ejecutar son: 
+# densidad, acidez.fija, ácido.cítrico, clase, dióxido.azufre.libre y 
+# azúcar.residual, como equipo hemos concluido que entre las variables 
+# restantes, la mejor candidata para predecir la variable de calidad es el pH.
+
+# La variable escogida fue el ph, ya que tras buscar información en diferentes
+# sitios web, hemos encontrado que el ph vino es una medida de la acidez o 
+# alcalinidad del mismo, y la acidez del vino juega un papel importante en su 
+# sabor, equilibrio y conservación, por lo que un ph adecuado puede contribuir
+# a la calidad del vino y afectar su estabilidad y evolución química.
+
+# Pero tenemos dos problemas, el primero es que al tomarse las variables de 
+# forma aleatoria, puede que la variable escogida por nosotros sea elegida
+# previamente como predictora, y el segundo problema es que pueda existir una
+# mejor variable entre las restantes para determinar la calidad del vino.
+
+# Para evitar los problemas anteriores, crearemos una matriz de correlación, 
+# para evaluar la correlación de cada variable restante con la variable de 
+# respuesta (calidad) anteriormente definida.
+
+# Evaluar la correlación de las variables restantes con la respuesta.
+muestra <- muestra %>% select(!predictoras)
+correlacion <- cor(muestra, y = respuesta)
+print(correlacion)
+
+# Una vez creada la matriz de correlación, obtenemos la variable que tenga mayor
+# correlación:
+correlacion_max <- which(abs(correlacion) == max(abs(correlacion)))
+predictor <- rownames(correlacion)[correlacion_max]
+cat("La mejor variable es:",predictor)
+
+# Una vez obtenida la mejor variable para determinar la calidad de los vinos
+# daremos paso a construir el modelo de regresión lineal simple, para ello en
+# primer lugar juntaremos la variable de respuestas con la variable predictora
+datos_rls <- muestra %>% select(predictor)
+datos_rls <- cbind(datos_rls, respuesta)
+
+
+
+
+
 
