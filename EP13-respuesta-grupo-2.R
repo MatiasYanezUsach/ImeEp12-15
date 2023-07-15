@@ -20,6 +20,11 @@ if(!require(ggpubr)){
   require(ggpubr)
 }
 
+if(!require(caret)){
+  install.packages("caret", dependencies = TRUE)
+  require(caret)
+}
+
 ################################################################################
 # contexto:
 
@@ -114,7 +119,7 @@ cat("Las variables predictoras escogidas de forma aleatoria son:\n",predictoras)
 # restantes, la mejor candidata para predecir la variable de calidad es el pH.
 
 # La variable escogida fue el ph, ya que tras buscar información en diferentes
-# sitios web, hemos encontrado que el ph vino es una medida de la acidez o 
+# sitios web, hemos encontrado que el ph del vino es una medida de la acidez o 
 # alcalinidad del mismo, y la acidez del vino juega un papel importante en su 
 # sabor, equilibrio y conservación, por lo que un ph adecuado puede contribuir
 # a la calidad del vino y afectar su estabilidad y evolución química.
@@ -143,17 +148,39 @@ cat("La mejor variable es:",predictor)
 # daremos paso a construir el modelo de regresión lineal simple, para ello en
 # primer lugar juntaremos la variable de respuestas con la variable predictora
 datos_rls <- sub_muestra %>% select(predictor)
+colnames(datos_rls)[1] <- "predictor_rls"
 datos_rls <- cbind(datos_rls, respuesta)
 
-modelo <- lm(respuesta ~ alcohol, data = datos_rls)
+# Si somos observadores, podemos observar que la variable predictora es de tipo
+# categórica, por lo que deberemos realizar una regresión lineal con un 
+# predictor categórico
+
+# Antes de seguir avanzando con el problema, debemos verificar el cumplimiento 
+# de las siguientes condiciones:
+
+# 1. Los datos deben presentar una relación lineal.
+# 2. La distribución de los residuos debe ser cercana a la normal.
+# 3. La variabilidad de los puntos en torno a la línea de mínimos cuadrados debe
+#    ser aproximadamente constante.
+# 4. Las observaciones deben ser independientes entre sí.
+
+# Entonces, para poder verificar la primera condición, lo que haremos sera 
+# evaluar si existe una relación lineal entre la variable predictora y la 
+# variable de respuesta utilizando un gráfico de dispersión (scatter plot) con 
+# la variable predictora en el eje x y la variable de respuesta en el eje y.
+g1 <- ggscatter(datos_rls, x = "predictor_rls", y = "respuesta", color = "blue",
+                fill = "blue", xlab = "Alcohol [grados]", 
+                ylab = "Calidad [Puntuacion]")
+
+g1 <- g1 + geom_smooth(method = lm, se = FALSE, colour = "red")
+print(g1)
+
+# Como podemos observar en le gráfico resultante
+
+modelo <- lm(respuesta ~ predictor_rls, data = datos_rls)
 print(summary(modelo))
 
-# Graficar el modelo.
-p <- ggscatter(datos_rls, x = "alcohol", y = "respuesta", color = "blue", fill = "blue",
-               xlab = "Alcohol [grados]", ylab = "Calidad [Puntuacion]")
 
-p <- p + geom_smooth(method = lm, se = FALSE, colour = "red")
-print(p)
 
 # Crear gráficos para evaluar el modelo.
 plot(modelo)
