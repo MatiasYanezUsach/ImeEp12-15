@@ -19,10 +19,18 @@ if(!require(ggpubr)){
   install.packages("ggpubr", dependencies = TRUE)
   require(ggpubr)
 }
-
 if(!require(caret)){
   install.packages("caret", dependencies = TRUE)
   require(caret)
+}
+if(!require(leaps)){
+  install.packages("leaps", dependencies = TRUE)
+  require(leaps)
+}
+
+if(!require(car)){
+  install.packages("car", dependencies = TRUE)
+  require(car)
 }
 
 ################################################################################
@@ -175,17 +183,182 @@ g1 <- ggscatter(datos_rls, x = "predictor_rls", y = "respuesta", color = "blue",
 g1 <- g1 + geom_smooth(method = lm, se = FALSE, colour = "red")
 print(g1)
 
-# Como podemos observar en le gráfico resultante
+# Como podemos observar en el gráfico resultante, no se puede verificar la 
+# primera condición, por lo que usaremos la validación cruzada de pliegues para
+# solucionar dicho inconveniente 
+rls <- train (respuesta ~ predictor_rls, data = datos_rls, method = "lm",
+              trControl = trainControl(method = "cv", number = 5))
+print(summary(rls))
 
-modelo <- lm(respuesta ~ predictor_rls, data = datos_rls)
-print(summary(modelo))
+# Una vez obtenido el modelo anterior, obtendremos los residuos relacionados en
+# conjunto de  las estadísticas influyentes, para ello, construiremos una matriz
+# donde se encontrara todo lo anterior mencionado.
+evaluacion_rls <- data.frame(respuesta_predicha = fitted(rls[["finalModel"]]))
+evaluacion_rls[["residuos_estandarizados"]] <- rstandard(rls[["finalModel"]])
+evaluacion_rls[["residuos_estudiantizados"]] <-rstudent(rls[["finalModel"]])
+evaluacion_rls[["distancia_Cook"]] <- cooks.distance(rls[["finalModel"]])
+evaluacion_rls[["dfbeta"]] <- dfbeta(rls[["finalModel"]])
+evaluacion_rls[["dffit"]] <- dffits(rls[["finalModel"]])
+evaluacion_rls[["apalancamiento"]] <- hatvalues(rls[["finalModel"]])
+evaluacion_rls[["covratio"]] <- covratio(rls[["finalModel"]])
+
+cat("Identificación de valores atípicos:\n")
+# Observaciones con residuos estandarizados fuera del 95% esperado.
+residuos_stnd <- which(abs(evaluacion_rls[["residuos_estandarizados"]]) > 1.96)
+cat("Residuos estandarizados fuera del 95% esperado:", residuos_stnd, "\n")
+
+# Observaciones con distancia de Cook mayor a uno.
+residuos_cook <- which(evaluacion_rls[["distancia_Cook"]] > 1)
+cat("Residuos con una distancia de Cook alta:", residuos_cook, "\n")
+
+# Como podemos observar, no se encuentran distancias de cook mayores a 1, lo que
+# significa que no hay observaciones que tengan un impacto significativo en el 
+# modelo de regresión lineal simple.  
+
+# Observaciones con apalancamiento mayor igual al doble del apalancamiento 
+# promedio.
+apalancamiento <- (ncol(datos_rls) + 1) / nrow(datos_rls)
+residuos_apal <- which(evaluacion_rls[["apalancamiento"]] > 2 * apalancamiento)
+cat("Residuos con apalancamiento fuera de rango:", residuos_apal, "\n")
+
+# Observaciones con DFBeta mayor o igual a 1.
+residuos_DFBeta <- which(apply(evaluacion_rls[["dfbeta"]] >= 1, 1, any))
+names(residuos_DFBeta) <- NULL
+cat("Residuos con DFBeta >= 1:", residuos_DFBeta, "\n")
+
+#  Como podemos observar, no se encuentran observaciones con DFBeta mayor o 
+# igual a 1,ya que ninguna observación tiene una influencia significativa en los
+# resultados de la estimación de los coeficientes.
+
+# Observaciones con razón de covarianza fuera de rango.
+inferior <- 1 - 3 * apalancamiento
+superior <- 1 + 3 * apalancamiento
+residuos_cov <- which(evaluacion_rls[["covratio"]] < inferior | 
+                      evaluacion_rls[["covratio"]] > superior)
+cat("Residuos con razón de covarianza fuera de rango:", residuos_cov, "\n")
+
+# Resumen de los residuos obtenidos
+residuos <- c(residuos_stnd, residuos_cook, residuos_apal, residuos_DFBeta, 
+              residuos_cov)
+residuos <- sort(unique(residuos))
+
+cat("\nResumen de los residuos obtenidos:\n")
+cat("Apalancamiento promedio:", apalancamiento, "\n")
+cat("Intervalo razón de covarianza: [", inferior, "; ", superior, "]\n\n",
+    sep = "")
+
+print(round(evaluacion_rls[residuos, c("distancia_Cook", 
+                                       "apalancamiento", 
+                                       "covratio")], 3))
+
+# Una vez observado todos los residuos anteriores, podemos concluir que se
+# trabajan con algunas observaciones con características de un valor atípico, 
+# pero como no se encontraron observaciones con una distancia de cook mayores a
+# 1, es posible determinar que dichas observaciones no son preocupantes a la
+# hora de trabajar con la muestra.
+
+# Por ultimo, veamos gráficos para evaluar el modelo.
+modelo_final <- lm(respuesta ~ predictor_rls, data = datos_rls)
+print(summary(modelo_final))
+plot(modelo_final)
+
+# En conclusión, el modelo de regresión lineal simple muestra una relación 
+# lineal fuerte entre el indice de alcohol y la calidad del vino, y no se 
+# identificaron observaciones influyentes o problemas graves en los residuos,
+# por lo que, el indice de alcohol es un predictor relevante para estimar la 
+# calidad del vino.
 
 
+###############################################################################
+# Ahora realizaremos la regresión lineal múltiple, para ello, seleccionaremos
+# las variables predictores escogidas al azar previamente.
+datos_rlm <- muestra %>% select(predictoras)
+datos_rlm <- cbind(respuesta, datos_rlm) # Trabajaremos con la misma respuesta
 
-# Crear gráficos para evaluar el modelo.
-plot(modelo)
+# Seleccionar mejores predictores para modelo de regresión lineal múltiple
+# usando el método de todos los subconjuntos.
+rlm_ini <- regsubsets(respuesta ~ ., data = datos_rlm, nbest = 1, nvmax = 5,
+                      method = "exhaustive")
+plot(rlm_ini)
 
-# Agregamos la variable predictora anterior al conjunto de 6 variables aleatorias anterior.
-nuevas_predictoras <- append(predictoras,predictor)
-nueva_sub_muestra <- cbind(sub_muestra,muestra$alcohol)
+# Como en el caso anterior tuvimos problemas para verificar las condiciones, en 
+# este caso ocurrirá lo mismo, por lo que usaremos la validación cruzada de 
+# pliegues para solucionar dicho inconveniente 
 
+# Ajustar el modelo con los mejores predictores usando validación cruzada de 5
+# pliegues, utilizando la azucar, debido a que en la vida real, es un componente
+# vital para la calidad del vino
+rlm <- train (respuesta ~  densidad + azucar.residual, data = datos_rlm, 
+              method = "lm",
+              trControl = trainControl(method = "cv", number = 5))
+
+cat("\nModelo de regresión lineal múltiple\n")
+print(summary(rlm))
+
+# Evaluar modelo.
+# Obtener residuos y estadísticas de influencia de los casos.
+evaluacion_rlm <- data.frame(respuesta_predicha = fitted(rlm[["finalModel"]]))
+evaluacion_rlm[["residuos_estandarizados"]] <- rstandard(rlm[["finalModel"]])
+evaluacion_rlm[["residuos_estudiantizados"]] <-rstudent(rlm[["finalModel"]])
+evaluacion_rlm[["distancia_Cook"]] <- cooks.distance(rlm[["finalModel"]])
+evaluacion_rlm[["dfbeta"]] <- dfbeta(rlm[["finalModel"]])
+evaluacion_rlm[["dffit"]] <- dffits(rlm[["finalModel"]])
+evaluacion_rlm[["apalancamiento"]] <- hatvalues(rlm[["finalModel"]])
+evaluacion_rlm[["covratio"]] <- covratio(rlm[["finalModel"]])
+
+cat("Identificación de valores atípicos:\n")
+# Observaciones con residuos estandarizados fuera del 95% esperado.
+residuos_stnd2 <- which(abs(evaluacion_rlm[["residuos_estandarizados"]]) > 1.96)
+cat("Residuos con una distancia de Cook alta \n")
+print(residuos_stnd2)
+
+# Observaciones con distancia de cook mayor a 1
+residuos_cook2 <- which(evaluacion_rlm[["distancia_Cook"]] > 1)
+cat("Residuos con distancia de Cook mayor que 1: \n")
+
+# Observaciones con apalancamiento superior al doble del apalancamiento promedio
+apalancamiento2 <- ncol(datos_rlm) / nrow(datos_rlm)
+residuos_apal2 <- which(evaluacion_rlm[["apalancamiento"]] > 2 * apalancamiento2)
+cat("Residuos con apalancamiento fuera de rango:", residuos_apal2, "\n")
+
+# DFBeta debería ser < 1.
+residuos_DFBeta2 <- which(apply(evaluacion_rlm[["dfbeta"]] >= 1, 1, any))
+names(residuos_DFBeta2) <- NULL
+cat("Residuos con DFBeta mayor que 1: ", residuos_DFBeta2, "\n")
+
+# Los casos no deberían desviarse significativamente de los límites recomendados
+# para la razón de covarianza:
+inferior2 <- 1 - 3 * apalancamiento2
+superior2 <- 1 + 3 * apalancamiento2
+residuos_cov2 <- which(evaluacion_rlm[["covratio"]] < inferior2 |
+                       evaluacion_rlm[["covratio"]] > superior2)
+cat("Residuos con razón de covarianza fuera de rango:", residuos_cov2, "\n")
+
+# Resumen de los residuos obtenidos
+residuos2 <- c(residuos_stnd2, residuos_cook2, residuos_apal2, residuos_DFBeta2,
+               residuos_cov2)
+residuos2 <- sort(unique(residuos2))
+cat("\nResumen de los residuos obtenidos:\n")
+cat("Apalancamiento promedio:", apalancamiento2, "\n")
+cat("Intervalo razón de covarianza: [", inferior2, "; ", superior2, "]\n\n",
+    sep = "")
+print(round(evaluacion_rlm[residuos2, c("distancia_Cook", 
+                                       "apalancamiento", 
+                                       "covratio")], 3))
+
+# Una vez observado todos los residuos anteriores, podemos concluir que se
+# trabajan con algunas observaciones con características de un valor atípico, 
+# pero como no se encontraron observaciones con una distancia de cook mayores a
+# 1, es posible determinar que dichas observaciones no son preocupantes a la
+# hora de trabajar con la muestra.
+
+# Ademas podemos observar que existe una fuerte relación entre las variables
+# de azúcar y densidad para determinar la calidad del vino, ademas podemos
+# concluir que este tipo de regresión nos entrego mejores resultados que la rls
+
+#Realizamos una prueba de independencia para los residuos
+cat("\nIndependencia de los residuos\n")
+print(durbinWatsonTest(rlm[["finalModel"]]))
+
+# Puesto que la prueba de Durbin-Watson entrega p = 0,174, podemos concluir que
+# los residuos son independientes.
