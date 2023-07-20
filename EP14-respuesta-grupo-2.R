@@ -28,6 +28,14 @@ if(!require(leaps)){
   install.packages("leaps", dependencies = TRUE)
   require(leaps)
 }
+if(!require(car)){
+  install.packages("car", dependencies = TRUE)
+  require(car)
+}
+if(!require(pROC)){
+  install.packages("pROC", dependencies = TRUE)
+  require(pROC)
+}
 
 ################################################################################
 # contexto:
@@ -96,15 +104,8 @@ if(!require(leaps)){
 ################################################################################
 
 # Antes de resolver la problemática, en primer lugar debemos obtener los datos:
-datos <- read.csv2("EP13 Datos.csv", stringsAsFactors = TRUE)
+datos <- read.csv2(file.choose(), stringsAsFactors = TRUE)
 datos[["clase"]] <- factor(datos[["clase"]])
-
-#ratio_azucar_alcohol <- datos[["azucar.residual"]] / datos[["alcohol"])
-#EN <- rep("Sobrepeso", length(IMC))
-#EN[IMC < 25] <- "No sobrepeso"
-#EN <- factor(EN)
-#datos <- cbind(EN, datos)
-
 
 # Definimos la semilla con los últimos 4 dígitos del RUT del participante Pablo 
 # Villarreal (19.894.097-6), el cual es el mayor de todos los integrantes.
@@ -120,24 +121,42 @@ muestras_tintos <- datos %>% filter(clase == "Tinto") %>%
 
 # Juntamos ambas muestras
 muestras_120 <- rbind(muestras_blancos, muestras_tintos)
+
+# Para estos datos, como poseemos una variable categórica como predictora, empleamos dummies y reemplazamos:
 # Separamos la variable de respuesta
-respuesta <- muestras_120[["clase"]]
-muestras_120[["clase"]] <- NULL
+respuesta <- muestras_120 %>% select("clase")
+
+# Utilizar model.matrix() para crear variables dummy
+datos_dummy <- model.matrix(~ clase, data = respuesta)
+
+# Convertir datos_dummy en un dataframe y seleccionar solo la columna "claseTinto" (la categoría base)
+muestras_120_dummy_df <- as.data.frame(datos_dummy) %>% select(claseTinto)
 
 # Seleccionamos los datos de 80 vinos (40 con clase “Blanco”) para utilizar en 
 # la construcción de los modelos y 40 vinos (20 con clase “Blanco”) para poder 
 # evaluarlos.
-vinos_model <- sample.int(nrow(x = muestras_blancos), 40, replace = FALSE)
-vinos_eval <- sample.int(nrow(x = muestras_blancos), 40, replace = FALSE)
+muestra_1 <- muestras_blancos %>% filter(clase == "Blanco") %>% 
+  sample_n(40, replace = FALSE)
+muestra_2 <- muestras_tintos %>% filter(clase == "Tinto") %>% 
+  sample_n(40, replace = FALSE)
+vinos_model <- rbind(muestra_1, muestra_2)
+
+muestra_3 <- muestras_blancos %>% filter(clase == "Blanco") %>% 
+  sample_n(20, replace = FALSE)
+muestra_4 <- muestras_tintos %>% filter(clase == "Tinto") %>% 
+  sample_n(20, replace = FALSE)
+vinos_eval <- rbind(muestra_3, muestra_4)
 
 # Seleccionamos los datos de la misma forma en la que hicimos en el Ep anterior.
 # Entonces:
 
+# 3.
 # Seleccionamos 6 variables predictoras al azar.
 variables <- colnames(muestras_120)
 predictores <- sample(variables, 6, replace = FALSE)
 cat("Predictores seleccionados al azar:\n")
 print(predictores)
+sub_muestra_predictores <- muestras_120 %>% select(predictores)
 
 # como podemos observar, las variables predictoras escogidas al azar son:
 # "azúcar.residual", "ácido.cítrico", "acidez.volátil", "densidad", "cloruros", 
@@ -152,8 +171,60 @@ print(predictores)
 # Sin embargo en este trabajo, como tenemos como variable de respuesta la 
 # "clase" del vino, y esta es categórica, no podemos usar la función "cor" para
 # determinar la correlación entre la variable predictora escogida y la variable
-# de respuesta, por lo que:
+# de respuesta, por lo que se aprovecha del haber transformado la variable categórica para el
+# uso de dummies:
 
-# datos para rlm / REVISAR
-datos.rlm <- datos %>% select(predictores)
-datos.rlm <- cbind(respuesta, datos.rlm)
+# 4.
+# dataframe de predictoras para el modelo
+sub_muestra_1 <- muestras_120 %>% select(!predictores)
+
+# Combinar el dataframe original con las variables dummy
+muestras_120_dummies <- cbind(sub_muestra_1, muestras_120_dummy_df)
+
+# Ahora estudiamos correlación:
+
+# Separamos la variable de respuesta
+respuesta_numerica <- muestras_120_dummies[["claseTinto"]]
+muestras_120_dummies[["clase"]] <- NULL
+muestras_120_ent <- muestras_120_dummies
+muestras_120_dummies[["claseTinto"]] <- NULL
+
+correlacion <- cor(muestras_120_dummies, y = respuesta_numerica)
+print(correlacion)
+
+# Una vez creada la matriz de correlación, obtenemos la variable que tenga mayor
+# correlación:
+correlacion_max <- which(abs(correlacion) == max(abs(correlacion)))
+predictor <- rownames(correlacion)[correlacion_max]
+cat("La mejor variable es:",predictor)
+
+# Definiciones anteriores
+# Separar conjuntos de entrenamiento con 80% de las instancias y prueba.
+n <- nrow(muestras_120_ent)
+n_entrenamiento <- floor(0.8 * n)
+muestra_ent <- sample.int(n = n, size = n_entrenamiento, replace = FALSE)
+entrenamiento <- muestras_120_ent[muestra_ent, ]
+prueba  <- muestras_120_ent[-muestra_ent, ]
+
+# 5.
+################################################################################
+# RLogS
+################################################################################
+
+cat("-----------------------------------------------------------------------\n")
+cat("Regresión logística simple\n")
+cat("-----------------------------------------------------------------------\n")
+
+################################################################################
+
+# Ajustar modelo.
+modelo_rlogs <- glm(claseTinto ~ dioxido.azufre.libre, family = binomial(link = "logit"), data = entrenamiento)
+
+cat("\nModelo de regresión logística simple\n")
+print(summary(modelo_rlogs))
+
+# 6.
+
+nuevo_conjunto <- cbind(sub_muestra_predictores, muestras_120_dummy_df)
+
+
